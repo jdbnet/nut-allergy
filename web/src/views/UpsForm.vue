@@ -19,7 +19,7 @@ const form = ref({
   priv_password: "",
 });
 
-const editing = route.path !== "/ups/new";
+const editing = route.path.endsWith("/edit");
 
 onMounted(async () => {
   if (!editing) return;
