@@ -1,8 +1,11 @@
 package alert
 
 import (
+	"bytes"
 	"crypto/tls"
+	"encoding/base64"
 	"fmt"
+	"mime"
 	"net/smtp"
 	"strings"
 )
@@ -18,20 +21,12 @@ type SMTPConfig struct {
 	To       []string
 }
 
-// SendMail delivers a plain-text message.
-func SendMail(cfg SMTPConfig, subject, body string) error {
+// SendMail delivers a multipart HTML and plain-text message.
+func SendMail(cfg SMTPConfig, subject, plain, htmlBody string) error {
 	if cfg.Host == "" || len(cfg.To) == 0 || cfg.From == "" {
 		return fmt.Errorf("smtp is not configured")
 	}
-	msg := strings.Join([]string{
-		"From: " + cfg.From,
-		"To: " + strings.Join(cfg.To, ", "),
-		"Subject: " + subject,
-		"MIME-Version: 1.0",
-		"Content-Type: text/plain; charset=UTF-8",
-		"",
-		body,
-	}, "\r\n")
+	msg := buildMIMEMessage(cfg.From, cfg.To, subject, plain, htmlBody)
 	addr := fmt.Sprintf("%s:%d", cfg.Host, cfg.Port)
 	auth := smtpAuth(cfg)
 	switch cfg.TLSMode {
@@ -90,6 +85,40 @@ func sendSTARTTLS(addr, host string, auth smtp.Auth, from string, to []string, m
 		}
 	}
 	return sendClient(client, from, to, msg)
+}
+
+func buildMIMEMessage(from string, to []string, subject, plain, htmlBody string) []byte {
+	if htmlBody == "" {
+		return []byte(strings.Join([]string{
+			"From: " + from,
+			"To: " + strings.Join(to, ", "),
+			"Subject: " + mime.QEncoding.Encode("utf-8", subject),
+			"MIME-Version: 1.0",
+			"Content-Type: text/plain; charset=UTF-8",
+			"",
+			plain,
+		}, "\r\n"))
+	}
+	boundary := "nut-allergy-" + base64.RawURLEncoding.EncodeToString([]byte(subject))[:16]
+	var buf bytes.Buffer
+	buf.WriteString("From: " + from + "\r\n")
+	buf.WriteString("To: " + strings.Join(to, ", ") + "\r\n")
+	buf.WriteString("Subject: " + mime.QEncoding.Encode("utf-8", subject) + "\r\n")
+	buf.WriteString("MIME-Version: 1.0\r\n")
+	buf.WriteString("Content-Type: multipart/alternative; boundary=" + boundary + "\r\n")
+	buf.WriteString("\r\n")
+	writePart(&buf, boundary, "text/plain; charset=UTF-8", plain)
+	writePart(&buf, boundary, "text/html; charset=UTF-8", htmlBody)
+	buf.WriteString("--" + boundary + "--\r\n")
+	return buf.Bytes()
+}
+
+func writePart(buf *bytes.Buffer, boundary, contentType, body string) {
+	buf.WriteString("--" + boundary + "\r\n")
+	buf.WriteString("Content-Type: " + contentType + "\r\n")
+	buf.WriteString("Content-Transfer-Encoding: 8bit\r\n\r\n")
+	buf.WriteString(body)
+	buf.WriteString("\r\n")
 }
 
 func sendClient(client *smtp.Client, from string, to []string, msg []byte) error {

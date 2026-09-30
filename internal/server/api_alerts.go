@@ -3,8 +3,11 @@ package server
 import (
 	"database/sql"
 	"errors"
+	"io"
 	"net/http"
+	"strings"
 
+	"nut-allergy/internal/alert/webhooks"
 	"nut-allergy/internal/store"
 )
 
@@ -67,11 +70,35 @@ func (s *Server) handlePutAlerts(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleTestAlertEmail(w http.ResponseWriter, r *http.Request) {
-	if err := s.notify.sendTestEmail(); err != nil {
-		writeErr(w, http.StatusBadRequest, err.Error())
+	var body struct {
+		SMTP         store.SMTPSettings `json:"smtp"`
+		SMTPPassword string             `json:"smtp_password"`
+	}
+	if err := readJSON(r, &body); err != nil && !errors.Is(err, io.EOF) {
+		badJSON(w, err)
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]string{"ok": "true"})
+	var cfg store.SMTPSettingsSecret
+	var err error
+	if body.SMTP.Host != "" || body.SMTP.FromAddr != "" || body.SMTP.ToAddrs != "" {
+		cfg, err = s.notify.resolveSMTPSecret(body.SMTP, body.SMTPPassword)
+		cfg.SMTPSettings = body.SMTP
+	} else {
+		cfg, err = s.store.GetSMTPSecret()
+	}
+	if err != nil {
+		writeJSON(w, http.StatusOK, map[string]any{"success": false, "error": err.Error()})
+		return
+	}
+	if err := s.notify.sendTestEmail(cfg); err != nil {
+		writeJSON(w, http.StatusOK, map[string]any{"success": false, "error": err.Error()})
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"success": true, "message": "Test email sent."})
+}
+
+func (s *Server) handleWebhookTemplates(w http.ResponseWriter, r *http.Request) {
+	writeJSON(w, http.StatusOK, webhooks.List())
 }
 
 func (s *Server) handleListWebhooks(w http.ResponseWriter, r *http.Request) {
@@ -97,9 +124,10 @@ func (s *Server) handleCreateWebhook(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, http.StatusBadRequest, "url is required")
 		return
 	}
-	format := body.Format
-	if format == "" {
-		format = "generic"
+	format := webhooks.Normalize(body.Format)
+	if !validWebhookTemplate(format) {
+		writeErr(w, http.StatusBadRequest, "unknown webhook template")
+		return
 	}
 	enabled := true
 	if body.Enabled != nil {
@@ -163,7 +191,11 @@ func (s *Server) handlePatchWebhook(w http.ResponseWriter, r *http.Request) {
 	}
 	format := cur.Format
 	if body.Format != "" {
-		format = body.Format
+		format = webhooks.Normalize(body.Format)
+		if !validWebhookTemplate(format) {
+			writeErr(w, http.StatusBadRequest, "unknown webhook template")
+			return
+		}
 	}
 	if err := s.store.UpdateWebhook(id, enabled, format, body.URL); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -199,10 +231,71 @@ func (s *Server) handleDeleteWebhook(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
+func (s *Server) handleTestWebhookDraft(w http.ResponseWriter, r *http.Request) {
+	s.executeWebhookTest(w, r, "")
+}
+
 func (s *Server) handleTestWebhook(w http.ResponseWriter, r *http.Request) {
-	if err := s.notify.sendTestWebhook(r.PathValue("id")); err != nil {
-		writeErr(w, http.StatusBadRequest, err.Error())
+	s.executeWebhookTest(w, r, r.PathValue("id"))
+}
+
+func (s *Server) executeWebhookTest(w http.ResponseWriter, r *http.Request, id string) {
+	var body struct {
+		URL    string `json:"url"`
+		Format string `json:"format"`
+		Event  string `json:"event"`
+	}
+	if err := readJSON(r, &body); err != nil && !errors.Is(err, io.EOF) {
+		badJSON(w, err)
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]string{"ok": "true"})
+	url := strings.TrimSpace(body.URL)
+	format := webhooks.Normalize(body.Format)
+	event := body.Event
+	if event == "" {
+		event = "test"
+	}
+	if url == "" && id != "" {
+		stored, err := s.store.WebhookURLForTest(id)
+		if err != nil {
+			writeJSON(w, http.StatusOK, map[string]any{"success": false, "error": err.Error()})
+			return
+		}
+		url = stored
+	}
+	if body.Format == "" && id != "" {
+		hooks, err := s.store.ListWebhooks()
+		if err == nil {
+			for _, h := range hooks {
+				if h.ID == id {
+					format = webhooks.Normalize(h.Format)
+					break
+				}
+			}
+		}
+	}
+	res, err := s.notify.testWebhook(url, format, event)
+	if err != nil {
+		writeJSON(w, http.StatusOK, map[string]any{"success": false, "error": err.Error()})
+		return
+	}
+	ok := res.StatusCode >= 200 && res.StatusCode < 300
+	out := map[string]any{
+		"success":     ok,
+		"status_code": res.StatusCode,
+		"response":    res.Body,
+	}
+	if !ok {
+		out["error"] = "webhook returned " + http.StatusText(res.StatusCode)
+	}
+	writeJSON(w, http.StatusOK, out)
+}
+
+func validWebhookTemplate(format string) bool {
+	for _, t := range webhooks.List() {
+		if t.ID == format {
+			return true
+		}
+	}
+	return false
 }

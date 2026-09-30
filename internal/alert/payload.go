@@ -1,11 +1,11 @@
 package alert
 
 import (
-	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
 
+	"nut-allergy/internal/alert/webhooks"
 	"nut-allergy/internal/snmp"
 )
 
@@ -53,17 +53,39 @@ func humanMessage(upsName string, tr Transition) string {
 	}
 }
 
-// FormatWebhookBody encodes the payload for a receiver style.
-func FormatWebhookBody(format string, p Payload) ([]byte, error) {
-	switch format {
-	case "slack":
-		body := map[string]any{"text": p.Text}
-		return json.Marshal(body)
-	case "discord":
-		body := map[string]any{"content": p.Text}
-		return json.Marshal(body)
-	default:
-		return json.Marshal(p)
+// SamplePayload builds a realistic notification for tests and previews.
+func SamplePayload(event string) Payload {
+	return payloadFromMessage(webhooks.SampleMessage(event))
+}
+
+// WebhookMessage converts a payload for webhook template builders.
+func WebhookMessage(p Payload) webhooks.Message {
+	return webhooks.Message{
+		Event:            p.Event,
+		UPSID:            p.UPSID,
+		UPSName:          p.UPSName,
+		State:            p.State,
+		PreviousState:    p.PreviousState,
+		Timestamp:        p.Timestamp,
+		LoadPercent:      p.LoadPercent,
+		ChargePercent:    p.ChargePercent,
+		MinutesRemaining: p.MinutesRemaining,
+		Text:             p.Text,
+	}
+}
+
+func payloadFromMessage(m webhooks.Message) Payload {
+	return Payload{
+		Event:            m.Event,
+		UPSID:            m.UPSID,
+		UPSName:          m.UPSName,
+		State:            m.State,
+		PreviousState:    m.PreviousState,
+		Timestamp:        m.Timestamp,
+		LoadPercent:      m.LoadPercent,
+		ChargePercent:    m.ChargePercent,
+		MinutesRemaining: m.MinutesRemaining,
+		Text:             m.Text,
 	}
 }
 
