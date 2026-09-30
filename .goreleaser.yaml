@@ -9,12 +9,7 @@ before:
     - rm -rf internal/assets/dist
     - mkdir -p internal/assets/dist
     - cp -a web/dist/. internal/assets/dist/
-    - rm -f internal/assets/nut-allergy-agent
-    - cmd: go build -ldflags "-s -w -X nut-allergy/internal/version.Version={{ .Version }} -X nut-allergy/internal/version.Commit={{ .ShortCommit }} -X nut-allergy/internal/version.Repo=jdbnet/nut-allergy" -o internal/assets/nut-allergy-agent ./cmd/agent
-      env:
-        - CGO_ENABLED=0
-        - GOOS=linux
-        - GOARCH=amd64
+    - bash -c 'rm -f internal/assets/nut-allergy-agent && CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags "-s -w -X nut-allergy/internal/version.Version={{.Version}} -X nut-allergy/internal/version.Commit={{.ShortCommit}} -X nut-allergy/internal/version.Repo=jdbnet/nut-allergy" -o internal/assets/nut-allergy-agent ./cmd/agent'
 
 builds:
   - id: nut-allergy-server
