@@ -102,7 +102,7 @@ CREATE TABLE IF NOT EXISTS continue_tokens (
   expires_at TEXT NOT NULL,
   used_at TEXT
 );
-`)
+` + eventsDDL() + alertsDDL())
 	return err
 }
 
@@ -549,6 +549,9 @@ func (s *Store) secretBlobs(id string) (auth, priv []byte, err error) {
 // DeleteUPS removes a UPS and any agent bindings to it.
 func (s *Store) DeleteUPS(id string) error {
 	if _, err := s.db.Exec(`DELETE FROM agent_ups WHERE ups_id = ?`, id); err != nil {
+		return err
+	}
+	if _, err := s.db.Exec(`DELETE FROM ups_events WHERE ups_id = ?`, id); err != nil {
 		return err
 	}
 	res, err := s.db.Exec(`DELETE FROM ups WHERE id = ?`, id)

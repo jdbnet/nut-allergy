@@ -42,9 +42,12 @@ func (s *Server) pollOnce() {
 		if reading.Error != "" {
 			log.Printf("ups %s: %s", u.Name, reading.Error)
 		}
+		prev := u.State
 		if err := s.store.ApplyReading(u.ID, reading, now); err != nil {
 			log.Printf("ups %s reading: %v", u.Name, err)
+			continue
 		}
+		s.notify.observe(u.ID, u.Name, prev, reading, now)
 	}
 }
 

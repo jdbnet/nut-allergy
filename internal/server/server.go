@@ -38,11 +38,12 @@ type Server struct {
 	readyOnce sync.Once
 	certReady chan struct{}
 	updates   *update.Checker
+	notify    *notifyEngine
 }
 
 // New returns a server. httpsAddr and setupAddr are listen addresses.
 func New(st *store.Store, dataDir, httpsAddr, setupAddr string) *Server {
-	return &Server{
+	srv := &Server{
 		store:     st,
 		dataDir:   dataDir,
 		httpsAddr: httpsAddr,
@@ -50,6 +51,9 @@ func New(st *store.Store, dataDir, httpsAddr, setupAddr string) *Server {
 		certReady: make(chan struct{}),
 		updates:   update.New(version.Repo, version.Version),
 	}
+	srv.notify = newNotifyEngine(st)
+	srv.notify.reloadTracker()
+	return srv
 }
 
 // Handler is the HTTP handler, used by listeners and tests.
@@ -87,6 +91,14 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /api/settings", s.requireAuth(s.handleGetSettings))
 	mux.HandleFunc("PATCH /api/settings", s.requireAuth(s.handlePatchSettings))
 	mux.HandleFunc("POST /api/settings/certificate", s.requireAuth(s.handleSettingsCertificate))
+	mux.HandleFunc("GET /api/settings/alerts", s.requireAuth(s.handleGetAlerts))
+	mux.HandleFunc("PUT /api/settings/alerts", s.requireAuth(s.handlePutAlerts))
+	mux.HandleFunc("POST /api/settings/alerts/test-email", s.requireAuth(s.handleTestAlertEmail))
+	mux.HandleFunc("GET /api/settings/webhooks", s.requireAuth(s.handleListWebhooks))
+	mux.HandleFunc("POST /api/settings/webhooks", s.requireAuth(s.handleCreateWebhook))
+	mux.HandleFunc("PATCH /api/settings/webhooks/{id}", s.requireAuth(s.handlePatchWebhook))
+	mux.HandleFunc("DELETE /api/settings/webhooks/{id}", s.requireAuth(s.handleDeleteWebhook))
+	mux.HandleFunc("POST /api/settings/webhooks/{id}/test", s.requireAuth(s.handleTestWebhook))
 
 	mux.HandleFunc("POST /api/agent/enroll", s.handleEnroll)
 	mux.HandleFunc("POST /api/agent/poll", s.requireAgent(s.handlePoll))
