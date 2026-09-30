@@ -102,7 +102,7 @@ CREATE TABLE IF NOT EXISTS continue_tokens (
   expires_at TEXT NOT NULL,
   used_at TEXT
 );
-`)
+` + historyDDL())
 	return err
 }
 
@@ -551,6 +551,12 @@ func (s *Store) DeleteUPS(id string) error {
 	if _, err := s.db.Exec(`DELETE FROM agent_ups WHERE ups_id = ?`, id); err != nil {
 		return err
 	}
+	if _, err := s.db.Exec(`DELETE FROM ups_metrics WHERE ups_id = ?`, id); err != nil {
+		return err
+	}
+	if _, err := s.db.Exec(`DELETE FROM ups_events WHERE ups_id = ?`, id); err != nil {
+		return err
+	}
 	res, err := s.db.Exec(`DELETE FROM ups WHERE id = ?`, id)
 	if err != nil {
 		return err
@@ -674,7 +680,10 @@ func (s *Store) ApplyReading(id string, r snmp.Reading, now time.Time) error {
 	_, err = s.db.Exec(`UPDATE ups SET state=?, minutes_remaining=?, seconds_on_battery=?, input_voltage=?, load_percent=?, charge_percent=?, on_battery_since=?, last_error=?, updated_at=? WHERE id=?`,
 		r.State, nullPtr(r.MinutesRemaining), nullPtr(r.SecondsOnBattery), nullPtr(r.InputVoltage), nullPtr(r.LoadPercent), nullPtr(r.ChargePercent),
 		sinceVal, r.Error, now.UTC().Format(time.RFC3339), id)
-	return err
+	if err != nil {
+		return err
+	}
+	return s.RecordPollHistory(id, prevState, r, now)
 }
 
 func nullPtr(n *int) any {
