@@ -34,7 +34,7 @@ async function remove() {
   error.value = "";
   try {
     await api(`/api/agents/${route.params.id}`, { method: "DELETE" });
-    router.push("/");
+    router.push("/agents");
   } catch (e) {
     error.value = e.message;
   }
@@ -66,7 +66,7 @@ async function save() {
         timeout_override_seconds: useOverride.value ? Number(override.value) : null,
       },
     });
-    router.push("/");
+    router.push("/agents");
   } catch (e) {
     error.value = e.message;
   }

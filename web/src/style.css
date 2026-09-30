@@ -147,12 +147,24 @@ textarea {
 }
 
 .nav-link:hover,
-.nav-link.router-link-exact-active {
+.nav-link.router-link-exact-active,
+.nav-link.section.router-link-active {
   color: var(--ink);
 }
 
-.nav-link.router-link-exact-active {
+.nav-link.router-link-exact-active,
+.nav-link.section.router-link-active {
   border-bottom-color: var(--copper);
+}
+
+.chip {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  line-height: 1.2;
+  padding: 0.2rem 0.45rem;
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  color: var(--ink);
 }
 
 .btn:disabled {

@@ -1,7 +1,7 @@
 <script setup>
 import { computed, onMounted, ref } from "vue";
 import { useRouter } from "vue-router";
-import { LogOut, Monitor, Moon, Plus, Server, Settings, Sun } from "@lucide/vue";
+import { Cpu, LogOut, Monitor, Moon, Plus, Server, Settings, Sun } from "@lucide/vue";
 import { api } from "./api";
 import { cycleTheme, themeMode } from "./theme";
 
@@ -86,7 +86,8 @@ onMounted(() => {
       </div>
       <nav class="flex flex-wrap items-center gap-1">
         <template v-if="authed && setup?.complete">
-          <router-link class="nav-link" to="/"><Server :size="16" :stroke-width="1.75" /> Fleet</router-link>
+          <router-link class="nav-link" to="/"><Server :size="16" :stroke-width="1.75" /> Rack</router-link>
+          <router-link class="nav-link section" to="/agents"><Cpu :size="16" :stroke-width="1.75" /> Agents</router-link>
           <router-link class="nav-link" to="/ups/new"><Plus :size="16" :stroke-width="1.75" /> Add UPS</router-link>
           <router-link class="nav-link" to="/settings"><Settings :size="16" :stroke-width="1.75" /> Settings</router-link>
         </template>
