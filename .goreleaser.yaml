@@ -1,0 +1,48 @@
+version: 2
+
+project_name: nut-allergy
+
+before:
+  hooks:
+    - npm ci --prefix web --no-audit --no-fund
+    - npm run build --prefix web
+    - rm -rf internal/assets/dist
+    - mkdir -p internal/assets/dist
+    - cp -a web/dist/. internal/assets/dist/
+    - rm -f internal/assets/nut-allergy-agent
+    - CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags "-s -w -X nut-allergy/internal/version.Version={{ .Version }} -X nut-allergy/internal/version.Commit={{ .ShortCommit }} -X nut-allergy/internal/version.Repo=jdbnet/nut-allergy" -o internal/assets/nut-allergy-agent ./cmd/agent
+
+builds:
+  - id: nut-allergy-server
+    main: ./cmd/server
+    binary: nut-allergy-server
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+    goarch:
+      - amd64
+    ldflags:
+      - -s -w
+      - -X nut-allergy/internal/version.Version={{ .Version }}
+      - -X nut-allergy/internal/version.Commit={{ .ShortCommit }}
+      - -X nut-allergy/internal/version.Repo=jdbnet/nut-allergy
+
+archives:
+  - id: nut-allergy-server
+    formats: [binary]
+    name_template: "{{ .ProjectName }}-{{ .Arch }}"
+    ids:
+      - nut-allergy-server
+
+checksum:
+  name_template: checksums.txt
+
+changelog:
+  disable: true
+
+release:
+  mode: append
+  github:
+    owner: jdbnet
+    name: nut-allergy
