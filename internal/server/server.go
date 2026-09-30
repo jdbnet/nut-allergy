@@ -78,6 +78,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /api/fleet", s.requireAuth(s.handleFleet))
 	mux.HandleFunc("GET /api/ups", s.requireAuth(s.handleListUPS))
 	mux.HandleFunc("POST /api/ups", s.requireAuth(s.handleCreateUPS))
+	mux.HandleFunc("GET /api/ups/{id}/history", s.requireAuth(s.handleUPSHistory))
 	mux.HandleFunc("GET /api/ups/{id}", s.requireAuth(s.handleGetUPS))
 	mux.HandleFunc("PUT /api/ups/{id}", s.requireAuth(s.handleUpdateUPS))
 	mux.HandleFunc("DELETE /api/ups/{id}", s.requireAuth(s.handleDeleteUPS))

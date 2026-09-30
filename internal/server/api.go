@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"errors"
 	"net/http"
+	"strings"
 	"time"
 
 	"nut-allergy/internal/policy"
@@ -196,6 +197,57 @@ func (s *Server) handleDeleteUPS(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
+}
+
+func (s *Server) handleUPSHistory(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+	u, err := s.store.GetUPS(id)
+	if errors.Is(err, sql.ErrNoRows) {
+		writeErr(w, http.StatusNotFound, "ups not found")
+		return
+	}
+	if err != nil {
+		writeErr(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	since, err := upsHistorySince(r.URL.Query().Get("range"))
+	if err != nil {
+		writeErr(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	metrics, err := s.store.ListUPSMetrics(id, since)
+	if err != nil {
+		writeErr(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	events, err := s.store.ListUPSEvents(id, since, 500)
+	if err != nil {
+		writeErr(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{
+		"ups":      u,
+		"samples":  metrics,
+		"events":   events,
+		"range":    r.URL.Query().Get("range"),
+		"since":    since,
+	})
+}
+
+func upsHistorySince(rangeParam string) (time.Time, error) {
+	now := time.Now()
+	switch strings.TrimSpace(rangeParam) {
+	case "", "24h":
+		return now.Add(-24 * time.Hour), nil
+	case "1h":
+		return now.Add(-time.Hour), nil
+	case "7d":
+		return now.Add(-7 * 24 * time.Hour), nil
+	case "30d":
+		return now.Add(-30 * 24 * time.Hour), nil
+	default:
+		return time.Time{}, errors.New("range must be 1h, 24h, 7d, or 30d")
+	}
 }
 
 func (s *Server) handleListAgents(w http.ResponseWriter, r *http.Request) {
