@@ -1,12 +1,13 @@
 <script setup>
-import { onMounted, onUnmounted, ref } from "vue";
-import { ClipboardCopy, Trash2 } from "@lucide/vue";
+import { computed, onMounted, onUnmounted, ref } from "vue";
+import { ClipboardCopy, Search, Trash2 } from "@lucide/vue";
 import { api } from "../api";
 import { presence } from "../presence";
 
 const fleet = ref(null);
 const error = ref("");
 const command = ref("");
+const search = ref("");
 let timer;
 
 function countdown(agent) {
@@ -63,6 +64,21 @@ async function install() {
   }
 }
 
+function agentHaystack(agent) {
+  const online = presence(agent.last_seen).online ? "online" : "offline";
+  const power = countdown(agent).toLowerCase();
+  const ups = (agent.ups_names || []).join(" ");
+  const wait = waitLabel(agent.effective_timeout_seconds);
+  return [agent.hostname, agent.id, online, power, ups, wait, agent.reason || ""].join(" ").toLowerCase();
+}
+
+const filteredAgents = computed(() => {
+  const agents = fleet.value?.agents ?? [];
+  const q = search.value.trim().toLowerCase();
+  if (!q) return agents;
+  return agents.filter((a) => agentHaystack(a).includes(q));
+});
+
 onMounted(() => {
   load();
   timer = setInterval(load, 5000);
@@ -83,9 +99,28 @@ onUnmounted(() => clearInterval(timer));
       </button>
     </div>
     <p v-if="command" class="mono mb-3 text-xs break-all text-[var(--copper)]">{{ command }}</p>
+    <div v-if="fleet.agents.length > 0" class="mb-4">
+      <label class="relative block">
+        <Search
+          class="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-[var(--muted)]"
+          :size="16"
+          :stroke-width="1.75"
+        />
+        <input
+          v-model="search"
+          class="field w-full pl-9"
+          type="search"
+          placeholder="Search hostname, supplies, power state…"
+          autocomplete="off"
+        />
+      </label>
+    </div>
     <p v-if="fleet.agents.length === 0" class="text-[var(--muted)]">No agents have enrolled.</p>
-    <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-      <article v-for="a in fleet.agents" :key="a.id" class="panel flex flex-col p-4">
+    <p v-else-if="filteredAgents.length === 0" class="text-[var(--muted)]">
+      No agents match “{{ search.trim() }}”. Try another hostname, supply name, or status.
+    </p>
+    <div v-else class="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+      <article v-for="a in filteredAgents" :key="a.id" class="panel flex flex-col p-4">
         <div class="flex items-start justify-between gap-3">
           <router-link :to="`/agents/${a.id}`" class="min-w-0 text-inherit no-underline">
             <div class="flex items-center gap-2">
