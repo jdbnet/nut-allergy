@@ -70,7 +70,7 @@ CREATE INDEX IF NOT EXISTS ups_events_ups_time ON ups_events(ups_id, created_at)
 // RecordPollHistory stores throttled metric samples and state-change events after a poll.
 func (s *Store) RecordPollHistory(upsID string, prevState string, r snmp.Reading, now time.Time) error {
 	if prevState != r.State {
-		if err := s.insertUPSEvent(upsID, "state_change", prevState, r.State, stateChangeMessage(prevState, r.State), r, now); err != nil {
+		if err := s.insertUPSEvent(upsID, "state_change", prevState, r.State, stateChangeMessage(prevState, r.State), r, now, false); err != nil {
 			return err
 		}
 	}
@@ -108,12 +108,16 @@ func (s *Store) insertMetricSample(upsID string, r snmp.Reading, now time.Time) 
 	return err
 }
 
-func (s *Store) insertUPSEvent(upsID, eventType, fromState, toState, message string, r snmp.Reading, now time.Time) error {
+func (s *Store) insertUPSEvent(upsID, eventType, fromState, toState, message string, r snmp.Reading, now time.Time, notified bool) error {
+	n := 0
+	if notified {
+		n = 1
+	}
 	_, err := s.db.Exec(`INSERT INTO ups_events(ups_id, event_type, from_state, to_state, message, load_percent, charge_percent, minutes_remaining, created_at, notified)
-		VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, 0)`,
+		VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		upsID, eventType, fromState, toState, message,
 		nullPtr(r.LoadPercent), nullPtr(r.ChargePercent), nullPtr(r.MinutesRemaining),
-		now.UTC().Format(time.RFC3339))
+		now.UTC().Format(time.RFC3339), n)
 	return err
 }
 
@@ -218,6 +222,6 @@ func (s *Store) ListUPSEvents(upsID string, since time.Time, limit int) ([]UPSEv
 }
 
 // InsertUPSEvent records an arbitrary event (e.g. alert delivery) for alert integrations.
-func (s *Store) InsertUPSEvent(upsID, eventType, fromState, toState, message string, r snmp.Reading, now time.Time) error {
-	return s.insertUPSEvent(upsID, eventType, fromState, toState, message, r, now)
+func (s *Store) InsertUPSEvent(upsID, eventType, fromState, toState, message string, r snmp.Reading, now time.Time, notified bool) error {
+	return s.insertUPSEvent(upsID, eventType, fromState, toState, message, r, now, notified)
 }

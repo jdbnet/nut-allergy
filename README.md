@@ -53,3 +53,22 @@ If the link to the server drops after a shutdown time was already set, the agent
 | `/etc/systemd/system/nut-allergy-agent.service` | Agent service |
 
 Logs: `journalctl -u nut-allergy-server` and `journalctl -u nut-allergy-agent`.
+
+## Power alerts
+
+In **Settings → Power alerts** you can enable SMTP email and add webhooks when a UPS goes on battery, returns to mains, or reports low battery. Debounce and cooldown reduce flap spam.
+
+**Email** uses multipart HTML and plain text. Use **Send test email** to try the current form (saved password is reused if the field is left blank).
+
+**Webhook templates** (pick a type, paste the URL, send a test):
+
+| Template | What to paste |
+| --- | --- |
+| Microsoft Teams (Workflows) | URL from Teams → channel → **Workflows** → “Post to a channel when a webhook request is received” (not the retired Office 365 connector). |
+| Discord | Incoming webhook URL. |
+| Slack | Incoming webhook URL. |
+| Gotify | Full message URL including `?token=`. |
+| ntfy | Topic URL (token in the URL if your server requires it). |
+| Generic JSON | Any receiver that accepts the default JSON payload. |
+
+Each webhook row has **Send test**; unsaved URLs can be tested before saving.

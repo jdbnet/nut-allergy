@@ -102,7 +102,7 @@ CREATE TABLE IF NOT EXISTS continue_tokens (
   expires_at TEXT NOT NULL,
   used_at TEXT
 );
-` + historyDDL())
+` + historyDDL() + alertsDDL())
 	return err
 }
 
