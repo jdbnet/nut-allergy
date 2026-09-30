@@ -80,9 +80,12 @@ onMounted(() => {
   <div v-if="!ready" class="p-10 text-[var(--muted)]">Opening the panel…</div>
   <div v-else class="mx-auto flex min-h-screen max-w-6xl flex-col px-5 py-6">
     <header class="mb-8 flex flex-wrap items-end justify-between gap-x-6 gap-y-3 border-b border-[var(--line)] pb-4">
-      <div>
-        <p class="mono text-xs tracking-[0.22em] text-[var(--copper)] uppercase">Local power</p>
-        <h1 class="text-4xl leading-none">NUT Allergy</h1>
+      <div class="flex items-center gap-3">
+        <img src="/favicon.png" alt="" width="44" height="44" class="h-11 w-11" />
+        <div>
+          <p class="mono text-xs tracking-[0.22em] text-[var(--copper)] uppercase">Local power</p>
+          <h1 class="text-4xl leading-none">NUT Allergy</h1>
+        </div>
       </div>
       <nav class="flex flex-wrap items-center gap-1">
         <template v-if="authed && setup?.complete">
