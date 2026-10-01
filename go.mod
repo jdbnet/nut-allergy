@@ -3,7 +3,7 @@ module nut-allergy
 go 1.27.1
 
 require (
-	github.com/charmbracelet/bubbletea v1.3.10
+	github.com/charmbracelet/bubbletea/v2 v2.0.10
 	github.com/charmbracelet/lipgloss v1.1.0
 	github.com/go-acme/lego/v4 v4.35.2
 	github.com/gosnmp/gosnmp v1.40.0
