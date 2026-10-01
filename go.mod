@@ -6,7 +6,7 @@ require (
 	github.com/charmbracelet/bubbletea v1.3.10
 	github.com/charmbracelet/lipgloss v1.1.0
 	github.com/go-acme/lego/v4 v4.35.2
-	github.com/gosnmp/gosnmp v1.40.0
+	github.com/gosnmp/gosnmp v1.45.0
 	golang.org/x/crypto v0.50.0
 	modernc.org/sqlite v1.38.2
 )
